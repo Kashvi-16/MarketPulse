@@ -1,5 +1,6 @@
 import yfinance as yf
 from datetime import datetime
+import requests
 
 def get_stock_quote(symbol: str):
     ticker = yf.Ticker(symbol)
@@ -28,3 +29,23 @@ def get_stock_history(symbol: str, period: str = "1mo"):
             "volume": int(row["Volume"]),
         })
     return data
+
+def get_stock_news(symbol: str):
+    api_key = "b380a2b46d01453b8266d02c1056e914"
+    url = f"https://newsapi.org/v2/everything?q={symbol}+stock&language=en&sortBy=publishedAt&pageSize=5&apiKey={api_key}"
+    try:
+        res = requests.get(url)
+        data = res.json()
+        articles = []
+        for a in data.get("articles", []):
+            if a.get("title") and a.get("url"):
+                articles.append({
+                    "title": a["title"],
+                    "source": a["source"]["name"],
+                    "url": a["url"],
+                    "published": a["publishedAt"][:10],
+                    "description": a.get("description", "")[:150]
+                })
+        return articles
+    except Exception as e:
+        return []

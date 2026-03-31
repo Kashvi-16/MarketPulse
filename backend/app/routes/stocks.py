@@ -6,6 +6,7 @@ from app.services.auth import decode_token
 from app.models.models import WatchList
 from fastapi.security import OAuth2PasswordBearer
 from app.services.osc_bridge import change_symbol, get_current_symbol
+from app.services.stocks import get_stock_quote, get_stock_history, get_stock_news
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -63,3 +64,11 @@ def set_visualization_symbol(symbol: str, user=Depends(get_current_user)):
 @router.get("/visualize/current")
 def get_visualization_symbol(user=Depends(get_current_user)):
     return {"symbol": get_current_symbol()}
+
+@router.get("/news/{symbol}")
+def news(symbol: str, user=Depends(get_current_user)):
+    return get_stock_news(symbol)
+
+@router.get("/news")
+def market_news(user=Depends(get_current_user)):
+    return get_stock_news("stock market India and US")

@@ -1,0 +1,13 @@
+myenv/
+backend/myenv/
+__pycache__/
+backend/__pycache__/
+backend/app/routes/__pycache__/
+backend/app/services/__pycache__/
+backend/app/models/__pycache__/
+.env
+backend/.env
+node_modules/
+*.pyc
+.vscode/
+backend/marketpulse.db
