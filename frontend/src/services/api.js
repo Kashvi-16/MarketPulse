@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const API = axios.create({
-  baseURL: 'https://marketpulse-production-585b.up.railway.app',
+  baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000',
 })
 
 API.interceptors.request.use((config) => {
@@ -12,18 +12,8 @@ API.interceptors.request.use((config) => {
   return config
 })
 
-API.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('username')
-    }
-    throw error
-  }
-)
-
 export const registerUser = (data) => API.post('/auth/register', data)
 export const loginUser = (data) => API.post('/auth/login', data)
 
 export default API
+
