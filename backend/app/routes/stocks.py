@@ -78,13 +78,16 @@ def market_news(user=Depends(get_current_user)):
 
 class ChatRequest(BaseModel):
     message: str
-    symbol: str = None
+    symbol: str = ""
 
 @router.post("/chat")
 def chat(request: ChatRequest, user=Depends(get_current_user)):
-    if request.symbol:
-        clean_symbol = request.symbol.replace('.NS', '').replace('.BSE', '')
-        response = analyze_stock(request.symbol, request.message)
-    else:
-        response = general_market_chat(request.message)
-    return {"response": response}
+    try:
+        if request.symbol and request.symbol.strip():
+            response = analyze_stock(request.symbol.strip(), request.message)
+        else:
+            response = general_market_chat(request.message)
+        return {"response": response}
+    except Exception as e:
+        print(f"Chat error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
