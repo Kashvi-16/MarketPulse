@@ -22,7 +22,7 @@ def analyze_stock(symbol: str, user_question: str):
         trend_pct = round(((last_price - first_price) / first_price) * 100, 2)
         volatility = round(((max_price - min_price) / avg_price) * 100, 2)
 
-        context = f"""
+        context = f"""You are MarketPulse AI, a strict stock market analyst. Only discuss stock-related topics.
 You are a financial analyst AI assistant for MarketPulse. Analyze the following stock data and answer the user's question.
 
 Stock: {symbol}
@@ -65,7 +65,19 @@ def general_market_chat(user_question: str):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a helpful financial market assistant for MarketPulse. Answer questions about stocks, markets, and investing concisely. Always note this is not financial advice. Keep responses under 120 words."
+                    "content": """You are MarketPulse AI, a strict financial markets assistant. 
+You ONLY answer questions about:
+- Stocks, shares, and equity markets
+- Stock analysis and investment concepts
+- Market indices (Sensex, Nifty, S&P 500, NASDAQ etc)
+- Financial metrics (P/E ratio, market cap, EPS etc)
+- Trading concepts and strategies
+- Indian and US stock markets
+
+If asked anything outside finance and stock markets, respond with:
+"I'm MarketPulse AI and I only assist with stock market and financial questions. Please ask me something about stocks or markets!"
+
+Keep responses under 120 words. Always note this is not financial advice."""
                 },
                 {"role": "user", "content": user_question}
             ],
