@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Search, Plus, Trash2, TrendingUp, TrendingDown } from 'lucide-react'
+import { Search, Plus, Trash2, TrendingUp, TrendingDown, Zap } from 'lucide-react'
 import API from '../services/api'
 
 export default function Dashboard() {
@@ -99,6 +99,15 @@ export default function Dashboard() {
               >
                 <Plus size={14} /> Add to Watchlist
               </button>
+              <button
+              onClick={async () => {
+                await API.post(`/stocks/visualize/${quote.symbol}`)
+                alert(`Now visualizing ${quote.symbol} in TouchDesigner!`)
+              }}
+              className="mt-2 bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition"
+            >
+              <Zap size={14} /> Visualize in TD
+            </button>
             </div>
           </div>
 

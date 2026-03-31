@@ -5,6 +5,7 @@ from app.services.stocks import get_stock_quote, get_stock_history
 from app.services.auth import decode_token
 from app.models.models import WatchList
 from fastapi.security import OAuth2PasswordBearer
+from app.services.osc_bridge import change_symbol, get_current_symbol
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -52,3 +53,13 @@ def remove_from_watchlist(symbol: str, db: Session = Depends(get_db), user=Depen
     db.delete(item)
     db.commit()
     return {"message": f"{symbol.upper()} removed from watchlist"}
+
+
+@router.post("/visualize/{symbol}")
+def set_visualization_symbol(symbol: str, user=Depends(get_current_user)):
+    change_symbol(symbol)
+    return {"message": f"Now visualizing {symbol.upper()}"}
+
+@router.get("/visualize/current")
+def get_visualization_symbol(user=Depends(get_current_user)):
+    return {"symbol": get_current_symbol()}
