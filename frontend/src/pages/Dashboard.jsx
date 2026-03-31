@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
-import { Search, Plus, Trash2, TrendingUp, TrendingDown, Zap, Activity } from 'lucide-react'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Search, Plus, Trash2, TrendingUp, TrendingDown, Zap, Activity, Clock } from 'lucide-react'
 import API from '../services/api'
 
 function StockCanvas({ quote }) {
   const canvasRef = useRef(null)
   const animRef = useRef(null)
   const particlesRef = useRef([])
+  const timeRef = useRef(0)
 
   useEffect(() => {
     if (!quote) return
@@ -14,73 +15,169 @@ function StockCanvas({ quote }) {
     const ctx = canvas.getContext('2d')
     canvas.width = canvas.offsetWidth
     canvas.height = canvas.offsetHeight
-
     const isPositive = quote.change >= 0
     const color = isPositive ? '#22c55e' : '#ef4444'
     const intensity = Math.min(Math.abs(quote.change_percent) / 5, 1)
-
-    // Initialize particles
-    particlesRef.current = Array.from({ length: 80 }, () => ({
+    const volatility = Math.abs(quote.high - quote.low) / quote.price
+    particlesRef.current = Array.from({ length: 120 }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * (1 + intensity * 3),
-      vy: (Math.random() - 0.5) * (1 + intensity * 3),
+      vx: (Math.random() - 0.5) * (1 + intensity * 4),
+      vy: (Math.random() - 0.5) * (1 + intensity * 4),
       size: Math.random() * 3 + 1,
       opacity: Math.random(),
+      pulse: Math.random() * Math.PI * 2,
     }))
-
     const draw = () => {
-      ctx.fillStyle = 'rgba(3, 7, 18, 0.15)'
+      timeRef.current += 0.02
+      ctx.fillStyle = 'rgba(3, 7, 18, 0.2)'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-
+      const cx = canvas.width / 2
+      const cy = canvas.height / 2
+      for (let i = 1; i <= 3; i++) {
+        const radius = (50 + i * 40 + Math.sin(timeRef.current + i) * 10 * volatility * 20)
+        ctx.beginPath()
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+        ctx.strokeStyle = `${color}${Math.floor(0.08 * 255).toString(16).padStart(2, '0')}`
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
+      const volumeWidth = canvas.width * Math.min(quote.volume / 100000000, 1)
+      ctx.fillStyle = `${color}33`
+      ctx.fillRect(0, canvas.height - 6, volumeWidth, 4)
+      ctx.fillStyle = color
+      ctx.fillRect(0, canvas.height - 6, volumeWidth * (0.3 + 0.7 * Math.abs(Math.sin(timeRef.current))), 4)
       particlesRef.current.forEach((p) => {
+        p.pulse += 0.05
         p.x += p.vx
         p.y += p.vy
-        p.opacity += (Math.random() - 0.5) * 0.05
-        p.opacity = Math.max(0.1, Math.min(1, p.opacity))
-
+        p.opacity = 0.4 + Math.sin(p.pulse) * 0.4
         if (p.x < 0 || p.x > canvas.width) p.vx *= -1
         if (p.y < 0 || p.y > canvas.height) p.vy *= -1
-
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
         ctx.fillStyle = `${color}${Math.floor(p.opacity * 255).toString(16).padStart(2, '0')}`
         ctx.fill()
       })
-
-      // Draw connecting lines
       particlesRef.current.forEach((p, i) => {
-        particlesRef.current.slice(i + 1).forEach((p2) => {
+        particlesRef.current.slice(i + 1, i + 6).forEach((p2) => {
           const dist = Math.hypot(p.x - p2.x, p.y - p2.y)
           if (dist < 80) {
             ctx.beginPath()
             ctx.moveTo(p.x, p.y)
             ctx.lineTo(p2.x, p2.y)
-            ctx.strokeStyle = `${color}${Math.floor((1 - dist / 80) * 60).toString(16).padStart(2, '0')}`
+            ctx.strokeStyle = `${color}${Math.floor((1 - dist / 80) * 50).toString(16).padStart(2, '0')}`
             ctx.lineWidth = 0.5
             ctx.stroke()
           }
         })
       })
-
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'
+      ctx.fillRect(10, 10, 160, 80)
+      ctx.fillStyle = '#ffffff99'
+      ctx.font = '11px monospace'
+      ctx.fillText(`Price:  $${quote.price}`, 20, 28)
+      ctx.fillText(`Change: ${quote.change_percent}%`, 20, 46)
+      ctx.fillText(`High:   $${quote.high}`, 20, 64)
+      ctx.fillText(`Low:    $${quote.low}`, 20, 82)
       animRef.current = requestAnimationFrame(draw)
     }
-
     draw()
     return () => cancelAnimationFrame(animRef.current)
   }, [quote])
 
   if (!quote) return null
-
   return (
-    <div className="relative w-full h-48 rounded-xl overflow-hidden mb-4">
+    <div className="relative w-full h-64 rounded-xl overflow-hidden">
       <canvas ref={canvasRef} className="w-full h-full" />
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-white/50 text-xs uppercase tracking-widest mb-1">Live Visual — {quote.symbol}</p>
-          <p className={`text-2xl font-bold ${quote.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {quote.change >= 0 ? '▲' : '▼'} {Math.abs(quote.change_percent)}%
-          </p>
+      <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+        <div className={`text-2xl font-bold ${quote.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          {quote.change >= 0 ? '▲' : '▼'} {Math.abs(quote.change_percent)}%
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function NewsPanel({ symbol }) {
+  const [news, setNews] = useState([])
+  const [newsLoading, setNewsLoading] = useState(false)
+  useEffect(() => {
+    const fetchNews = async () => {
+      setNewsLoading(true)
+      try {
+        const url = symbol ? `/stocks/news/${symbol}` : '/stocks/news'
+        const res = await API.get(url)
+        setNews(res.data)
+      } catch (err) {}
+      finally { setNewsLoading(false) }
+    }
+    fetchNews()
+  }, [symbol])
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <h3 className="font-semibold text-gray-300">{symbol ? `${symbol} News` : 'Market News'}</h3>
+        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+      </div>
+      {newsLoading ? (
+        <p className="text-gray-500 text-sm">Loading news...</p>
+      ) : news.length === 0 ? (
+        <p className="text-gray-500 text-sm">No news available</p>
+      ) : (
+        <div className="space-y-4">
+          {news.map((article, i) => (
+            <a key={i} href={article.url} target="_blank" rel="noopener noreferrer"
+              className="block hover:bg-gray-800 p-3 rounded-xl transition">
+              <p className="text-white text-sm font-medium leading-snug mb-1">{article.title}</p>
+              <p className="text-gray-500 text-xs">{article.source} · {article.published}</p>
+              {article.description && (
+                <p className="text-gray-400 text-xs mt-1 line-clamp-2">{article.description}</p>
+              )}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DateTimeCard() {
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  const isWeekday = now.getDay() > 0 && now.getDay() < 6
+  const hour = now.getHours()
+  const indiaOpen = isWeekday && hour >= 9 && hour < 16
+  const usOpen = isWeekday && ((hour >= 19 && hour <= 23) || (hour >= 0 && hour < 2))
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Clock size={16} className="text-blue-400" />
+        <h3 className="font-bold text-gray-300">Market Clock</h3>
+      </div>
+      <div className="text-center mb-4">
+        <p className="text-3xl font-bold text-white font-mono">
+          {now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </p>
+        <p className="text-gray-400 text-sm mt-1">
+          {now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        </p>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between bg-gray-800 px-3 py-2 rounded-lg">
+          <span className="text-gray-400 text-xs">🇮🇳 NSE/BSE</span>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${indiaOpen ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
+            {indiaOpen ? '● Open' : '● Closed'}
+          </span>
+        </div>
+        <div className="flex items-center justify-between bg-gray-800 px-3 py-2 rounded-lg">
+          <span className="text-gray-400 text-xs">🇺🇸 NYSE/NASDAQ</span>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${usOpen ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
+            {usOpen ? '● Open' : '● Closed'}
+          </span>
         </div>
       </div>
     </div>
@@ -96,9 +193,7 @@ export default function Dashboard() {
   const [error, setError] = useState('')
   const [tdActive, setTdActive] = useState(false)
 
-  useEffect(() => {
-    fetchWatchlist()
-  }, [])
+  useEffect(() => { fetchWatchlist() }, [])
 
   const fetchWatchlist = async () => {
     try {
@@ -159,29 +254,25 @@ export default function Dashboard() {
             value={symbol}
             onChange={(e) => setSymbol(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === 'Enter' && searchStock()}
-            placeholder="Search stock... (AAPL, TSLA, GOOGL, MSFT)"
+            placeholder="Search stock... (AAPL, TSLA, GOOGL, RELIANCE.NS)"
             className="flex-1 bg-gray-900 border border-gray-800 text-white rounded-xl px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
-          <button
-            onClick={() => searchStock()}
-            className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl flex items-center gap-2 transition font-medium"
-          >
+          <button onClick={() => searchStock()}
+            className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl flex items-center gap-2 transition font-medium">
             <Search size={18} />
             {loading ? 'Loading...' : 'Search'}
           </button>
         </div>
 
         {error && (
-          <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-xl mb-4">
-            {error}
-          </div>
+          <div className="bg-red-900/30 border border-red-800 text-red-400 px-4 py-3 rounded-xl mb-4">{error}</div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            {quote && (
+            {quote ? (
               <>
                 {/* Stock Header */}
                 <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
@@ -195,22 +286,17 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => addToWatchlist(quote.symbol)}
-                        className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition"
-                      >
+                      <button onClick={() => addToWatchlist(quote.symbol)}
+                        className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition">
                         <Plus size={14} /> Watchlist
                       </button>
-                      <button
-                        onClick={visualizeInTD}
-                        className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition font-medium ${tdActive ? 'bg-green-600' : 'bg-purple-600 hover:bg-purple-700'}`}
-                      >
+                      <button onClick={visualizeInTD}
+                        className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition font-medium ${tdActive ? 'bg-green-600' : 'bg-purple-600 hover:bg-purple-700'}`}>
                         <Zap size={14} /> {tdActive ? 'Sent to TD!' : 'Visualize in TD'}
                       </button>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="bg-gray-800 rounded-xl p-3">
                       <p className="text-gray-400 text-xs">Day High</p>
                       <p className="text-white font-bold text-lg">${quote.high}</p>
@@ -251,20 +337,37 @@ export default function Dashboard() {
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
-              </>
-            )}
 
-            {!quote && (
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-12 text-center">
-                <TrendingUp size={48} className="text-gray-700 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg">Search for a stock to get started</p>
-                <p className="text-gray-600 text-sm mt-2">Try AAPL, TSLA, GOOGL, MSFT, AMZN</p>
+                {/* Stock specific news */}
+                <NewsPanel symbol={quote.symbol} />
+              </>
+            ) : (
+              <div className="space-y-6">
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center">
+                  <TrendingUp size={48} className="text-gray-700 mx-auto mb-4" />
+                  <p className="text-gray-400 text-lg mb-2">Search for a stock to get started</p>
+                  <p className="text-gray-600 text-sm mb-6">Try these popular stocks:</p>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {['AAPL', 'TSLA', 'GOOGL', 'MSFT', 'AMZN', 'NVDA', 'META'].map((s) => (
+                      <button key={s} onClick={() => { setSymbol(s); searchStock(s) }}
+                        className="bg-gray-800 hover:bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium transition">{s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* General market news when no stock searched */}
+                <NewsPanel symbol={null} />
               </div>
             )}
           </div>
 
-          {/* Right Column — Watchlist */}
+          {/* Right Column — always visible */}
           <div className="space-y-4">
+
+            {/* Date Time Card — always visible */}
+            <DateTimeCard />
+
+            {/* Watchlist */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
               <h3 className="font-bold text-lg mb-4">Watchlist</h3>
               {watchlist.length === 0 ? (
@@ -272,31 +375,48 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-2">
                   {watchlist.map((sym) => (
-                    <div
-                      key={sym}
-                      className="flex items-center justify-between bg-gray-800 hover:bg-gray-750 px-4 py-3 rounded-xl cursor-pointer transition"
-                      onClick={() => { setSymbol(sym); searchStock(sym) }}
-                    >
+                    <div key={sym}
+                      className="flex items-center justify-between bg-gray-800 px-4 py-3 rounded-xl cursor-pointer hover:bg-gray-700 transition"
+                      onClick={() => { setSymbol(sym); searchStock(sym) }}>
                       <span className="font-medium">{sym}</span>
-                      <Trash2
-                        size={14}
-                        className="text-gray-500 hover:text-red-400 transition"
-                        onClick={(e) => { e.stopPropagation(); removeFromWatchlist(sym) }}
-                      />
+                      <Trash2 size={14} className="text-gray-500 hover:text-red-400 transition"
+                        onClick={(e) => { e.stopPropagation(); removeFromWatchlist(sym) }} />
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
+            {/* TouchDesigner */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
               <h3 className="font-bold mb-3">TouchDesigner</h3>
               <p className="text-gray-400 text-sm mb-3">Stream live stock data as generative visuals</p>
               <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${tdActive ? 'bg-green-900/40 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
                 <div className={`w-2 h-2 rounded-full ${tdActive ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
-                {tdActive ? 'Streaming to TouchDesigner' : 'Click Visualize in TD to stream'}
+                {tdActive ? 'Streaming to TouchDesigner' : 'Open TouchDesigner with MarketPulse.toe'}
               </div>
             </div>
+
+            {/* How it works */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <h3 className="font-bold mb-4 text-gray-300">How it works</h3>
+              <div className="space-y-4">
+                {[
+                  { num: 1, color: 'bg-blue-600', title: 'Search any stock', desc: 'US stocks like AAPL, TSLA or Indian stocks like RELIANCE.NS' },
+                  { num: 2, color: 'bg-purple-600', title: 'Watch the live visual', desc: 'Particle network reacts to price, volatility and volume in real time' },
+                  { num: 3, color: 'bg-green-600', title: 'Stream to TouchDesigner', desc: 'Click "Visualize in TD" to send live data via OSC to TouchDesigner' },
+                ].map((step) => (
+                  <div key={step.num} className="flex items-start gap-4">
+                    <div className={`${step.color} text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0`}>{step.num}</div>
+                    <div>
+                      <p className="font-medium text-sm">{step.title}</p>
+                      <p className="text-gray-400 text-xs">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
