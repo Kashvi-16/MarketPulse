@@ -12,6 +12,17 @@ API.interceptors.request.use((config) => {
   return config
 })
 
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('username')
+    }
+    throw error
+  }
+)
+
 export const registerUser = (data) => API.post('/auth/register', data)
 export const loginUser = (data) => API.post('/auth/login', data)
 
