@@ -8,6 +8,7 @@ from app.services.chat import analyze_stock, general_market_chat
 from app.services.osc_bridge import change_symbol, get_current_symbol
 from app.models.models import WatchList
 from fastapi.security import OAuth2PasswordBearer
+from typing import Optional
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -75,10 +76,9 @@ def market_news(user=Depends(get_current_user)):
     return get_stock_news("stock market India and US")
 
 
-
 class ChatRequest(BaseModel):
     message: str
-    symbol: str = ""
+    symbol: Optional[str] = None
 
 @router.post("/chat")
 def chat(request: ChatRequest, user=Depends(get_current_user)):
