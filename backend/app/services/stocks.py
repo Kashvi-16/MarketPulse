@@ -5,6 +5,11 @@ import requests
 def get_stock_quote(symbol: str):
     ticker = yf.Ticker(symbol)
     info = ticker.fast_info
+    
+    # Detect currency
+    is_indian = symbol.upper().endswith('.NS') or symbol.upper().endswith('.BO')
+    currency = "₹" if is_indian else "$"
+    
     return {
         "symbol": symbol.upper(),
         "price": round(info.last_price, 2),
@@ -13,6 +18,7 @@ def get_stock_quote(symbol: str):
         "volume": info.three_month_average_volume,
         "high": round(info.day_high, 2),
         "low": round(info.day_low, 2),
+        "currency": currency
     }
 
 def get_stock_history(symbol: str, period: str = "1mo"):
@@ -30,9 +36,31 @@ def get_stock_history(symbol: str, period: str = "1mo"):
         })
     return data
 
+STOCK_NAMES = {
+    'SBIN': 'State Bank of India',
+    'RELIANCE': 'Reliance Industries',
+    'TCS': 'Tata Consultancy Services',
+    'INFY': 'Infosys',
+    'HDFCBANK': 'HDFC Bank',
+    'ICICIBANK': 'ICICI Bank',
+    'WIPRO': 'Wipro',
+    'TATAMOTORS': 'Tata Motors',
+    'ADANIENT': 'Adani Enterprises',
+    'BAJFINANCE': 'Bajaj Finance',
+    'AAPL': 'Apple',
+    'TSLA': 'Tesla',
+    'GOOGL': 'Google',
+    'MSFT': 'Microsoft',
+    'AMZN': 'Amazon',
+    'NVDA': 'Nvidia',
+    'META': 'Meta',
+}
+
 def get_stock_news(symbol: str):
     api_key = "b380a2b46d01453b8266d02c1056e914"
-    url = f"https://newsapi.org/v2/everything?q={symbol}+stock&language=en&sortBy=publishedAt&pageSize=5&apiKey={api_key}"
+    clean_symbol = symbol.replace('.NS', '').replace('.BSE', '').upper()
+    search_term = STOCK_NAMES.get(clean_symbol, clean_symbol)
+    url = f"https://newsapi.org/v2/everything?q={search_term}+stock+market&language=en&sortBy=publishedAt&pageSize=5&apiKey={api_key}"
     try:
         res = requests.get(url)
         data = res.json()

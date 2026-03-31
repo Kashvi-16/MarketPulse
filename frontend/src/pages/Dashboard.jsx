@@ -76,10 +76,10 @@ function StockCanvas({ quote }) {
       ctx.fillRect(10, 10, 160, 80)
       ctx.fillStyle = '#ffffff99'
       ctx.font = '11px monospace'
-      ctx.fillText(`Price:  $${quote.price}`, 20, 28)
+      ctx.fillText(`Price:  ${quote.currency}${quote.price}`, 20, 28)
       ctx.fillText(`Change: ${quote.change_percent}%`, 20, 46)
-      ctx.fillText(`High:   $${quote.high}`, 20, 64)
-      ctx.fillText(`Low:    $${quote.low}`, 20, 82)
+      ctx.fillText(`High:   ${quote.currency}${quote.high}`, 20, 64)
+      ctx.fillText(`Low:    ${quote.currency}${quote.low}`, 20, 82)
       animRef.current = requestAnimationFrame(draw)
     }
     draw()
@@ -184,6 +184,89 @@ function DateTimeCard() {
   )
 }
 
+
+function ChatWidget({ symbol }) {
+  const [messages, setMessages] = useState([
+    { role: 'assistant', text: 'Hi! Ask me anything about stocks or the market. I can analyze any stock you\'re viewing!' }
+  ])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const messagesEndRef = useRef(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const sendMessage = async () => {
+    if (!input.trim()) return
+    const userMsg = input.trim()
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }])
+    setLoading(true)
+    try {
+      const res = await API.post('/stocks/chat', {
+        message: userMsg,
+        symbol: symbol || null
+      })
+      setMessages(prev => [...prev, { role: 'assistant', text: res.data.response }])
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Sorry, I could not process that. Try again!' }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col h-96">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+        <h3 className="font-bold text-gray-300">AI Market Analyst</h3>
+        {symbol && <span className="text-xs bg-blue-900/50 text-blue-400 px-2 py-0.5 rounded-full">{symbol}</span>}
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] px-3 py-2 rounded-xl text-sm ${
+              msg.role === 'user'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-800 text-gray-300'
+            }`}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-800 px-3 py-2 rounded-xl text-sm text-gray-400">
+              Analyzing...
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+          placeholder={symbol ? `Ask about ${symbol}...` : 'Ask about any stock...'}
+          className="flex-1 bg-gray-800 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+        <button
+          onClick={sendMessage}
+          disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-sm transition disabled:opacity-50"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const [symbol, setSymbol] = useState('')
   const [quote, setQuote] = useState(null)
@@ -279,7 +362,7 @@ export default function Dashboard() {
                   <div className="flex items-start justify-between mb-6">
                     <div>
                       <h2 className="text-4xl font-bold">{quote.symbol}</h2>
-                      <p className="text-5xl font-bold mt-2">${quote.price}</p>
+                      <p className="text-5xl font-bold mt-2">{quote.currency}{quote.price}</p>
                       <div className={`flex items-center gap-2 mt-2 text-lg ${quote.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {quote.change >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                         <span>{quote.change} ({quote.change_percent}%)</span>
@@ -299,11 +382,11 @@ export default function Dashboard() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-gray-800 rounded-xl p-3">
                       <p className="text-gray-400 text-xs">Day High</p>
-                      <p className="text-white font-bold text-lg">${quote.high}</p>
+                      <p className="text-white font-bold text-lg">{quote.currency}{quote.high}</p>
                     </div>
                     <div className="bg-gray-800 rounded-xl p-3">
                       <p className="text-gray-400 text-xs">Day Low</p>
-                      <p className="text-white font-bold text-lg">${quote.low}</p>
+                      <p className="text-white font-bold text-lg">{quote.currency}{quote.low}</p>
                     </div>
                   </div>
                 </div>
@@ -397,25 +480,8 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* How it works */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <h3 className="font-bold mb-4 text-gray-300">How it works</h3>
-              <div className="space-y-4">
-                {[
-                  { num: 1, color: 'bg-blue-600', title: 'Search any stock', desc: 'US stocks like AAPL, TSLA or Indian stocks like RELIANCE.NS' },
-                  { num: 2, color: 'bg-purple-600', title: 'Watch the live visual', desc: 'Particle network reacts to price, volatility and volume in real time' },
-                  { num: 3, color: 'bg-green-600', title: 'Stream to TouchDesigner', desc: 'Click "Visualize in TD" to send live data via OSC to TouchDesigner' },
-                ].map((step) => (
-                  <div key={step.num} className="flex items-start gap-4">
-                    <div className={`${step.color} text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0`}>{step.num}</div>
-                    <div>
-                      <p className="font-medium text-sm">{step.title}</p>
-                      <p className="text-gray-400 text-xs">{step.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* AI Chat */}
+            <ChatWidget symbol={quote?.symbol || null} />
 
           </div>
         </div>

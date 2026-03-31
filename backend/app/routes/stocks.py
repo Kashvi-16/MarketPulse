@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from app.database import get_db
-from app.services.stocks import get_stock_quote, get_stock_history
+from app.services.stocks import get_stock_quote, get_stock_history, get_stock_news
 from app.services.auth import decode_token
+from app.services.chat import analyze_stock, general_market_chat
+from app.services.osc_bridge import change_symbol, get_current_symbol
 from app.models.models import WatchList
 from fastapi.security import OAuth2PasswordBearer
-from app.services.osc_bridge import change_symbol, get_current_symbol
-from app.services.stocks import get_stock_quote, get_stock_history, get_stock_news
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -72,3 +73,18 @@ def news(symbol: str, user=Depends(get_current_user)):
 @router.get("/news")
 def market_news(user=Depends(get_current_user)):
     return get_stock_news("stock market India and US")
+
+
+
+class ChatRequest(BaseModel):
+    message: str
+    symbol: str = None
+
+@router.post("/chat")
+def chat(request: ChatRequest, user=Depends(get_current_user)):
+    if request.symbol:
+        clean_symbol = request.symbol.replace('.NS', '').replace('.BSE', '')
+        response = analyze_stock(request.symbol, request.message)
+    else:
+        response = general_market_chat(request.message)
+    return {"response": response}
