@@ -4,10 +4,11 @@ from app.database import engine, Base
 from app.routes import auth, stocks
 from app.services.osc_bridge import stream_stock_to_td
 from contextlib import asynccontextmanager
+import asyncio
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    stream_stock_to_td("AAPL")
+    asyncio.create_task(stream_stock_to_td("AAPL"))
     yield
 
 Base.metadata.create_all(bind=engine)
