@@ -6,9 +6,18 @@ from app.services.osc_bridge import stream_stock_to_td
 from contextlib import asynccontextmanager
 import asyncio
 
+import threading
+
+def safe_stream():
+    try:
+        stream_stock_to_td("AAPL")
+    except Exception as e:
+        print("Stream error:", e)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(stream_stock_to_td("AAPL"))
+    thread = threading.Thread(target=safe_stream, daemon=True)
+    thread.start()
     yield
 
 Base.metadata.create_all(bind=engine)
