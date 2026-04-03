@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
@@ -5,6 +6,7 @@ from app.routes import auth, stocks
 from app.services.osc_bridge import stream_stock_to_td
 from contextlib import asynccontextmanager
 import asyncio
+import uvicorn
 
 import threading
 
@@ -16,6 +18,7 @@ def safe_stream():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await asyncio.sleep(1)  # give FastAPI time to start
     thread = threading.Thread(target=safe_stream, daemon=True)
     thread.start()
     yield
@@ -38,3 +41,11 @@ app.include_router(stocks.router, prefix="/stocks", tags=["Stocks"])
 @app.get("/")
 def root():
     return {"message": "MarketPulse API is running!"}
+
+
+
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))  # Railway provides this
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port)
